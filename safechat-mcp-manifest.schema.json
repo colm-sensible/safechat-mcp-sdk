@@ -1,25 +1,35 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://safechat.ie/schemas/safechat-mcp-manifest.v1.json",
+  "$id": "https://safechat.ie/schemas/safechat-mcp-manifest.v2.json",
   "title": "SafeChatMcpServerManifest",
-  "description": "Declarative manifest published at GET /manifest by any SafeChat Marketplace MCP Server.",
+  "description": "Declarative manifest (v1.0 or v2.0) published at GET /manifest by any SafeChat Marketplace MCP Server.",
   "type": "object",
   "required": ["schemaVersion", "serverId", "name", "vendor", "tools"],
   "properties": {
     "schemaVersion": {
       "type": "string",
-      "const": "1.0"
+      "enum": ["1.0", "2.0"]
     },
     "serverId": {
       "type": "string",
-      "pattern": "^[a-z0-9][a-z0-9-]{2,62}$",
-      "description": "Unique kebab-case identifier for your MCP server (e.g. 'acme-irish-conveyancing')."
+      "pattern": "^[a-z0-9][a-z0-9.-]{2,80}$",
+      "description": "Unique kebab-case or reverse-DNS identifier for your MCP server (e.g. 'ie.safechat.mcp.finance' or 'acme-irish-conveyancing')."
     },
     "name": {
       "type": "string",
       "minLength": 3,
       "maxLength": 80,
       "description": "Human-readable name of your MCP server pack."
+    },
+    "version": {
+      "type": "string"
+    },
+    "jurisdiction": {
+      "type": "string",
+      "enum": ["IE", "UK", "DE", "EU", "US", "AU"]
+    },
+    "isOfficial": {
+      "type": "boolean"
     },
     "vendor": {
       "type": "object",
@@ -48,8 +58,8 @@
         "properties": {
           "name": {
             "type": "string",
-            "pattern": "^[a-z0-9_]{2,64}$",
-            "description": "Machine tool identifier invoked via JSON-RPC tools/call (e.g. 'draft_requisitions')."
+            "pattern": "^[a-z0-9_-]{2,80}$",
+            "description": "Machine tool identifier invoked via JSON-RPC tools/call (e.g. 'mcp-management-accounts-commentary' or 'draft_requisitions')."
           },
           "title": {
             "type": "string",
@@ -67,6 +77,20 @@
               "enum": ["legal", "recruitment", "clinical", "finance", "general"]
             }
           },
+          "subVertical": {
+            "type": "string"
+          },
+          "jurisdiction": {
+            "type": "string",
+            "enum": ["IE", "UK", "DE", "EU", "US", "AU"]
+          },
+          "category": {
+            "type": "string"
+          },
+          "tierBadge": {
+            "type": "string",
+            "enum": ["HERO_LAUNCH", "DEEP_AUDIT_PACK", "PARTNER_VERIFIED"]
+          },
           "pricing": {
             "type": "object",
             "required": ["model", "creatorPriceEurCents"],
@@ -77,8 +101,7 @@
               },
               "creatorPriceEurCents": {
                 "type": "integer",
-                "minimum": 0,
-                "description": "Your net payout in EUR cents (e.g. 20 = €0.20 per call, or 4900 = €49.00/month). SafeChat adds its platform fee on top when billing the customer."
+                "minimum": 0
               },
               "trial": {
                 "type": "object",
@@ -86,14 +109,12 @@
                   "trialDays": {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": 90,
-                    "description": "Optional free trial duration in days (e.g. 30)."
+                    "maximum": 90
                   },
                   "trialFreeCalls": {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": 1000,
-                    "description": "Optional number of free executions per organisation before billing begins."
+                    "maximum": 1000
                   }
                 }
               }
@@ -104,16 +125,20 @@
             "items": {
               "type": "string",
               "enum": ["entityType", "authority", "formatValid", "dateOrderIndex", "granularity"]
-            },
-            "description": "Least-privilege list of non-identifying token metadata properties your tool needs."
+            }
           },
           "inputSchema": {
-            "type": "object",
-            "description": "Standard JSON Schema describing the fields inside arguments.input."
+            "type": "object"
           },
           "outputFormat": {
             "type": "string",
-            "enum": ["markdown", "json", "html-preview", "docx-base64", "csv"]
+            "enum": ["markdown", "json", "html", "html-preview", "docx-base64", "xlsx-base64", "csv"]
+          },
+          "uiSchema": {
+            "type": "object"
+          },
+          "privacyPolicy": {
+            "type": "object"
           }
         }
       }

@@ -1,7 +1,7 @@
 {
   "name": "@safechat/mcp-sdk",
-  "version": "1.0.0",
-  "description": "Official SafeChat MCP Marketplace Developer SDK, Manifest Schema, Server Helper & Automated Conformance Verifier",
+  "version": "2.0.0",
+  "description": "Official SafeChat MCP Marketplace Developer SDK v2.0: Universal Tool Factory (defineSafeChatMcpTool), Country Jurisdiction Scrubber Packs, Manifest Schema & Automated Conformance Verifier",
   "license": "MIT",
   "type": "module",
   "main": "./src/index.ts",
@@ -10,11 +10,13 @@
     "./schema.json": "./safechat-mcp-manifest.schema.json"
   },
   "bin": {
-    "safechat-mcp-verify": "./src/cli.ts"
+    "safechat-mcp-verify": "./src/cli.ts",
+    "safechat-mcp": "./src/cli.ts"
   },
   "scripts": {
     "test": "vitest run",
     "verify": "tsx src/cli.ts",
+    "create-tool": "tsx src/cli.ts create-tool",
     "example": "tsx examples/starter-server/server.ts"
   },
   "devDependencies": {

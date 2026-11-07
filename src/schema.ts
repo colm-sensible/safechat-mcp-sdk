@@ -1,5 +1,5 @@
 export type SafeChatVertical = 'legal' | 'recruitment' | 'clinical' | 'finance' | 'general';
-export type SafeChatJurisdiction = 'IE' | 'UK' | 'EU' | 'US' | 'AU';
+export type SafeChatJurisdiction = 'IE' | 'UK' | 'DE' | 'EU' | 'US' | 'AU';
 export type SafeChatPricingModel =
 	| 'free'
 	| 'included_in_plan'
@@ -15,9 +15,13 @@ export type SafeChatTokenMetaField =
 export type SafeChatOutputFormat =
 	| 'markdown'
 	| 'json'
+	| 'html'
 	| 'html-preview'
 	| 'docx-base64'
+	| 'xlsx-base64'
 	| 'csv';
+
+export type SafeChatTierBadge = 'HERO_LAUNCH' | 'DEEP_AUDIT_PACK' | 'PARTNER_VERIFIED';
 
 export interface SafeChatMcpToolPricing {
 	model: SafeChatPricingModel;
@@ -28,21 +32,58 @@ export interface SafeChatMcpToolPricing {
 	};
 }
 
+export interface SafeChatUiFileDropzone {
+	id: string;
+	label: string;
+	accept: string[];
+	localPrecomputeEngine?: string;
+}
+
+export interface SafeChatUiFormField {
+	id: string;
+	label: string;
+	type: 'text' | 'textarea' | 'select' | 'number' | 'checkbox';
+	options?: string[];
+	required?: boolean;
+	defaultValue?: string | number | boolean;
+}
+
+export interface SafeChatToolUiSchema {
+	mode: 'guided-wizard' | 'split-pane-review' | 'batch-table-scanner';
+	fileDropzones?: SafeChatUiFileDropzone[];
+	formFields?: SafeChatUiFormField[];
+	outputDeliverableLabel: string;
+}
+
+export interface SafeChatToolPrivacyPolicy {
+	requiredScrubbers: string[];
+	regulatoryStandards?: string[];
+	zeroDataRetentionRequired?: boolean;
+}
+
 export interface SafeChatMcpToolDefinition {
 	name: string;
 	title: string;
 	description: string;
 	verticals: SafeChatVertical[];
+	subVertical?: string;
+	jurisdiction?: SafeChatJurisdiction;
+	category?: string;
+	tierBadge?: SafeChatTierBadge;
 	pricing: SafeChatMcpToolPricing;
 	requiredTokenMeta: SafeChatTokenMetaField[];
 	inputSchema: Record<string, unknown>;
 	outputFormat: SafeChatOutputFormat;
+	uiSchema?: SafeChatToolUiSchema;
+	privacyPolicy?: SafeChatToolPrivacyPolicy;
 }
 
 export interface SafeChatMcpServerManifest {
-	schemaVersion: '1.0';
+	schemaVersion: '1.0' | '2.0';
 	serverId: string;
 	name: string;
+	version?: string;
+	jurisdiction?: SafeChatJurisdiction;
 	isOfficial?: boolean;
 	vendor: {
 		name: string;
@@ -67,6 +108,7 @@ export interface SanitisedContext {
 	vertical?: SafeChatVertical;
 	jurisdiction?: SafeChatJurisdiction;
 	zdrRequired?: boolean;
+	litellmKey?: string;
 }
 
 export interface SanitisedEnvelope<TInput = Record<string, any>> {
@@ -105,13 +147,15 @@ const VALID_TOKEN_META = new Set([
 const VALID_OUTPUT_FORMATS = new Set([
 	'markdown',
 	'json',
+	'html',
 	'html-preview',
 	'docx-base64',
+	'xlsx-base64',
 	'csv'
 ]);
 
 /**
- * Validates a SafeChatMcpServerManifest object and returns `{ valid, errors }`.
+ * Validates a SafeChatMcpServerManifest object (v1.0 or v2.0) and returns `{ valid, errors }`.
  */
 export function validateSafeChatManifest(manifest: any): {
 	valid: boolean;
@@ -122,14 +166,16 @@ export function validateSafeChatManifest(manifest: any): {
 		return { valid: false, errors: ['Manifest must be a JSON object'] };
 	}
 
-	if (manifest.schemaVersion !== '1.0') {
-		errors.push('schemaVersion must be "1.0"');
+	if (manifest.schemaVersion !== '1.0' && manifest.schemaVersion !== '2.0') {
+		errors.push('schemaVersion must be "1.0" or "2.0"');
 	}
 	if (
 		typeof manifest.serverId !== 'string' ||
-		!/^[a-z0-9][a-z0-9-]{2,62}$/.test(manifest.serverId)
+		!/^[a-z0-9][a-z0-9.-]{2,80}$/.test(manifest.serverId)
 	) {
-		errors.push('serverId must be a 3-63 char kebab-case identifier');
+		errors.push(
+			'serverId must be a 3-81 char kebab-case or reverse-DNS identifier (e.g. safechat-mcp-legal or ie.safechat.mcp.finance)'
+		);
 	}
 	if (typeof manifest.name !== 'string' || manifest.name.trim().length < 3) {
 		errors.push('name must be at least 3 characters');
@@ -147,8 +193,8 @@ export function validateSafeChatManifest(manifest: any): {
 	} else {
 		manifest.tools.forEach((tool: any, idx: number) => {
 			const prefix = `tools[${idx}]`;
-			if (typeof tool.name !== 'string' || !/^[a-z0-9_]{2,64}$/.test(tool.name)) {
-				errors.push(`${prefix}.name must be a valid snake_case identifier`);
+			if (typeof tool.name !== 'string' || !/^[a-z0-9_-]{2,80}$/.test(tool.name)) {
+				errors.push(`${prefix}.name must be a valid snake_case or kebab-case identifier`);
 			}
 			if (typeof tool.title !== 'string' || !tool.title.trim()) {
 				errors.push(`${prefix}.title is required`);
@@ -169,7 +215,9 @@ export function validateSafeChatManifest(manifest: any): {
 				typeof tool.pricing.creatorPriceEurCents !== 'number' ||
 				tool.pricing.creatorPriceEurCents < 0
 			) {
-				errors.push(`${prefix}.pricing must specify a valid model and non-negative creatorPriceEurCents`);
+				errors.push(
+					`${prefix}.pricing must specify a valid model and non-negative creatorPriceEurCents`
+				);
 			}
 			if (
 				!Array.isArray(tool.requiredTokenMeta) ||
